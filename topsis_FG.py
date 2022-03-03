@@ -90,4 +90,4 @@ def topsis(a, w, sign):
         distance_best, distance_worst, a.shape[0], a.shape[1])
     rank = calculate_rank(score)
     return rank
-    # returns a tupple with index of best data point as first element and score array(numpy) as the other
+

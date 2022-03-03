@@ -71,23 +71,31 @@ def dividing_stations(IGSNetwork, alg, num_points):
     return IGSNetwork
 
 #Multiple-criteria decision analysis
-def MDCA(IGSNetwork, alg, weights, num_points):
+def MDCA(IGSNetwork, alg, weights, num_points, num_hz):
     mat = pd.DataFrame()
+    
+    crit = [1, 1, -1, -1]
+    criterias = np.array([-1])
+    
+    crit2 = np.array(['max', 'max', 'min', 'min'])
+    criterias2 = np.array(['min'])
+    
+    for h in range(num_hz):
+        criterias = np.hstack((criterias,crit))
+        criterias2 = np.hstack((criterias2,crit2))
         
     for segment in range(0,num_points):
         seg = IGSNetwork[IGSNetwork.loc[:,"segment"]==segment].drop("stats", axis=1)
-        evaluation_matrix = np.array(seg.iloc[:,6:15])
-        
+        evaluation_matrix = np.array(seg.iloc[:,6:-1])
+
         if alg == "TOPSIS":
-            criterias = np.array([-1, 1, 1, -1, -1, 1, 1, -1, -1])
             rank = top.topsis(evaluation_matrix, weights, criterias)
             df = pd.DataFrame(rank, index=seg.index, columns=["TOPSIS"])
             
         elif alg == "COPRAS":
-            criterias = np.array(['min', 'max', 'max', 'min', 'min', 'max', 'max', 'min', 'min'])
-            rank = cop.copras_method(evaluation_matrix, weights, criterias)
+            rank = cop.copras_method(evaluation_matrix, weights, criterias2)
             df = pd.DataFrame(rank, index=seg.index, columns=["COPRAS"])
-    
+        
         mat = pd.concat([mat, df])
     IGSNetwork = pd.concat([IGSNetwork, mat], axis=1)
 
