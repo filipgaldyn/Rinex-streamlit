@@ -13,12 +13,6 @@ from sklearn.cluster import KMeans, AgglomerativeClustering
 import topsis_FG as top
 import copras as cop
 
-def par_mean(plik2, name, date):
-    x = plik2.stack().T.loc[:, (slice(None), slice(None), name)]
-    m = pd.DataFrame(x.T.mean())
-    m.columns = [date]
-    return m, x
-
 def how_empty(file, IGSNetwork):
     for z in file.columns:
         if file[z].sum() == 0:
@@ -38,24 +32,6 @@ def dir_to_pick_file(directory, date, endpoint):
         if k.endswith(f"{year}_{doy}{endpoint}"):
             s.append(os.path.join(directory, k))
     return s[0]
-
-def map_generate(longitude, latitude, labels, num_points):
-    #generacja mapy
-    import geopandas
-    path = geopandas.datasets.get_path('naturalearth_lowres')
-    df = geopandas.read_file(path)
-    df.plot(figsize=(15,10), color="white", edgecolor = "grey")
-    plt.grid()
-    plt.scatter(longitude, latitude, c=labels, s=30)
-    plt.title(f"Dla podziału na {num_points} segmentów")
-    plt.xticks(fontsize=15)
-    plt.yticks(fontsize=15)
-    plt.xlabel("Longitude [°]", fontsize=15)
-    plt.ylabel("Latitude [°]", fontsize=15)
-    plt.legend(labels)
-    plt.show()
-    
-# grupowanie pozostałych stacji na segmenty
 
 def dividing_stations(IGSNetwork, alg, num_points):
     if alg == "KMeans":
@@ -101,15 +77,27 @@ def MDCA(IGSNetwork, alg, weights, num_points, num_hz):
 
     return IGSNetwork
 
+def only_ones(IGSNetwork, method):
+    IGSNetwork = IGSNetwork[IGSNetwork.loc[:,method]==1]
+    return IGSNetwork
+
+def mean_all(out, freq_done1):
+    full_mean = pd.DataFrame()
+    par = ["snr", "obs", "gaps", "multipath"]
+    for hh in freq_done1:
+        for x in par:
+            d = pd.DataFrame(out.loc[:, (hh[0], hh[1], x)].T.mean(), columns=[(hh[0],hh[1],x)])
+            full_mean = pd.concat([full_mean, d], axis=1)
+    return full_mean
+
 def process_file(IGSNetwork, folder_name, date, lastDate):
     print("Przetwarzam pliki...")
-    snr_mean = pd.DataFrame()
-    gaps_mean = pd.DataFrame()
-    obs_mean = pd.DataFrame()
-    mp_mean = pd.DataFrame()
-    hz = []
+    snr_mean2 = pd.DataFrame()
+    gaps_mean2 = pd.DataFrame()
+    obs_mean2 = pd.DataFrame()
+    mp_mean2 = pd.DataFrame()
+
     sys = []
-    new=[]
     i=0
     while date <= lastDate:
         dirname = os.path.dirname(os.path.abspath("__file__"))
@@ -120,10 +108,7 @@ def process_file(IGSNetwork, folder_name, date, lastDate):
         
         plik = pd.read_csv(file_to_av, index_col=0)
         plik2 = pd.read_csv(file_to_q, index_col=[0,1], header=[0,1])
-        plik3 = pd.read_csv(file_to_q).iloc[:,1].to_list()
         plik4 = pd.read_csv(file_to_q).iloc[:,0].to_list()
-        for g in plik2.index:
-            new.append(g)
 
         for y in plik4:
             if type(y) is str:
@@ -131,35 +116,21 @@ def process_file(IGSNetwork, folder_name, date, lastDate):
         
         IGSNetwork = how_empty(plik, IGSNetwork)
         
-        ms, snr = par_mean(plik2, 'snr', date)
-        snr_mean = pd.concat([snr_mean, ms], axis=1).fillna(0)
+        snr2 = plik2.stack().T.loc[:, (slice(None), slice(None), "snr")]
+        snr_mean2 = pd.concat([snr_mean2, snr2], axis=1)
+
+        gaps2 = plik2.stack().T.loc[:, (slice(None), slice(None), "gaps")]
+        gaps_mean2 = pd.concat([gaps_mean2, gaps2], axis=1)
         
-        mg, gaps = par_mean(plik2, 'gaps', date)
-        gaps_mean = pd.concat([gaps_mean, mg], axis=1).fillna(0)
+        obs2 = plik2.stack().T.loc[:, (slice(None), slice(None), "obs")]
+        obs_mean2 = pd.concat([obs_mean2, obs2], axis=1)
         
-        mo, obs = par_mean(plik2, 'obs', date)
-        obs_mean = pd.concat([obs_mean, mo], axis=1).fillna(0)
-        
-        mp, multipath = par_mean(plik2, 'multipath', date)
-        mp_mean = pd.concat([mp_mean, mp], axis=1).fillna(0)
+        multipath2 = plik2.stack().T.loc[:, (slice(None), slice(None), "multipath")]
+        mp_mean2 = pd.concat([mp_mean2, multipath2], axis=1)
         
         i+=1
         date += datetime.timedelta(days=1)
-
-    new = list(sorted(set(new)))
-    multi = pd.MultiIndex.from_tuples(new)
-    new2 = pd.DataFrame(index=multi)
-    sys = list(set(sys))
-    df4_2 = pd.concat([snr, obs, gaps, multipath], axis=1)
-    return df4_2, i, sys, new2
-
-def by_par(statsy, system1, system2, hz1, hz2):
-    par1 = statsy.loc[:, (system1, hz1, slice(None))]
-    par2 = statsy.loc[:, (system2, hz2, slice(None))]
     
-    out = pd.concat([par1, par2], axis=1).dropna()
-    return out
-
-def only_ones(IGSNetwork, method):
-    IGSNetwork = IGSNetwork[IGSNetwork.loc[:,method]==1]
-    return IGSNetwork
+    df = pd.concat([snr_mean2, obs_mean2, gaps_mean2, mp_mean2], axis=1)
+    sys = sorted(list(set(sys)))
+    return df, i, sys
