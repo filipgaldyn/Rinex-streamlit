@@ -30,9 +30,12 @@ def copras_method(dataset, weights, criterion_type):
     s_d = np.zeros(X.shape[0])
     q_i = np.zeros(X.shape[0])
     u_i = np.zeros(X.shape[0])
+    print(X)
     id1 = [i for i, j in enumerate(criterion_type) if j == 'max']
+    print(id1)
     id2 = [i for i, j in enumerate(criterion_type) if j == 'min']
     if (len(id1) > 0):
+        print(X[:,id1])
         s_p = np.sum(X[:,id1], axis = 1)
         q_i = s_p
 

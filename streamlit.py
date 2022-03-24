@@ -18,6 +18,7 @@ st.set_page_config(
     page_title="RINEX-AV",
     page_icon="🧊",
     layout="wide",
+    
     initial_sidebar_state="expanded"
 )
 st.markdown("<h2 style='text-align: center; color: black;'>GNSS permanent MGEX station selection system based on qualitative analysis of RINEX files</h2>", unsafe_allow_html=True)
@@ -36,13 +37,21 @@ IGSNetwork = pd.read_csv(file).set_index("#StationName")
 IGSNetwork['stats'] = 0
 st.sidebar.markdown("<h3 style='text-align: center; color: black;'>Data Availability:<br> <u>2021/01/01 - 2021/02/16</u></h3>", unsafe_allow_html=True)
 date = st.sidebar.date_input('Start date', datetime.date(2021,1,1))
-lastDate = st.sidebar.date_input('End date', datetime.date(2021,1,3))
 
-ileprocent = st.sidebar.slider('Avarage Percent of RINEX availability', 50, 100, value=90, step=5)
-clustering_method = st.sidebar.selectbox('Clustering Method', ["KMeans", "AgglomerativeClustering"])
-
-method = st.sidebar.selectbox('Method of decision making', ["TOPSIS", "COPRAS"])
-num_points = st.sidebar.slider('Number of Stations', 5, IGSNetwork.shape[0], value=100, step=5)
+if date:
+    
+    lastDate = st.sidebar.date_input('End date', datetime.date(2021,1,3))
+    
+    if date < lastDate:
+        ileprocent = st.sidebar.slider('Avarage Percent of RINEX availability', 50, 100, value=90, step=5)
+        clustering_method = st.sidebar.selectbox('Clustering Method', ["KMeans", "AgglomerativeClustering"])
+        
+        method = st.sidebar.selectbox('Method of decision making', ["TOPSIS", "COPRAS"])
+        num_points = st.sidebar.slider('Number of Stations', 5, IGSNetwork.shape[0], value=100, step=5)
+    else:
+        st.error("ENTER THE RELEVANT DATE RANGE")
+        st.stop()
+        
 
 try:
     df, i, sys = process_file(IGSNetwork, "rv3_stat", date, lastDate)
@@ -51,7 +60,7 @@ except:
     st.stop()
 
 with col1:
-    sys_bar1 = st.sidebar.multiselect('Systems', sys, default=sys[0])
+    sys_bar1 = st.sidebar.multiselect('Systems', sys, default=sys[0:2])
     freq1 = df.loc[:, (sys_bar1, slice(None), slice(None))].columns.to_list()
     
 hz = []
